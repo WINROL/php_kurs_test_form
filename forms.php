@@ -1,9 +1,53 @@
 <?php
-define('FILE_NAME', 'form.txt');
+define('FILE_NAME', __DIR__ . '/form.txt');
+define('UPLOAD_DIR', __DIR__ . '/uploads');
 
 //приходят данные из формы
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $arr = [];
+    $errors = [];
+
+    //проверка файла
+    if ($_FILES['userFile']['error'] > 0) {
+        $errors['file'] = 'Файл не был загружен, попробуйте еще раз!';
+    }
+    if (empty($errors['file'])) {
+        if (!is_dir(UPLOAD_DIR)) {
+            if (!mkdir(UPLOAD_DIR)) {
+                $errors['file'] = 'Не могу создать каталог для картинок!';
+            }
+        }
+
+        if (empty($errors['file'])) {
+            $maxSize = 16777216;
+            $mimeTypes = [
+                'image/png',
+                'image/jpeg',
+                'image/gif'
+            ];
+
+            if ($_FILES['userFile']['size'] > $maxSize) {
+                $errors['file'] = 'Файл должен быть <= 16mb';
+            } elseif (!in_array($_FILES['userFile']['type'], $mimeTypes)) {
+                $errors['file'] = 'Загружаемый файл должен быть картинкой!';
+            } else {
+                $ext = explode('.', $_FILES['userFile']['name']);
+                if (is_array($ext)) {
+                    $ext = $ext[count($ext) - 1];
+                } else {
+                    $ext = 'jpg';
+                }
+
+                //пытаемся загрузить файл в директорию
+                $fileName = UPLOAD_DIR . '/' . uniqid() . '.' . $ext;
+                if (move_uploaded_file($_FILES['userFile']['tmp_name'], $fileName)) {
+                    $arr['file'] = $fileName;
+                } else {
+                    $errors['file'] = 'Какая-то ошибка при загрузке файла!';
+                }
+            }
+        }
+    }
 
     function validateStr($str, $min = 3)
     {
@@ -19,8 +63,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
     }
 
-
-    $errors = [];
 
     $nameArr = validateStr($_POST['name']);
     if (false === $nameArr['error']) {
@@ -45,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors) && !empty($arr)) {
         //если все хорошо
-        file_put_contents(FILE_NAME, serialize($arr) . "END$$$\r\n", FILE_APPEND);
+        file_put_contents(FILE_NAME, serialize($arr) . "END$$$\r\n", FILE_APPEND | LOCK_EX);
 
         //то делаем редирект
         header('Location: ' . $_SERVER['PHP_SELF']);
@@ -54,8 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
-<form id="testForm" name="test" method="POST">
-
+<form id="testForm" name="test" method="POST" enctype="multipart/form-data">
     <label>
         Имя:<br>
         <input type="text"
@@ -92,7 +133,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         ?>
     </label>
-    <br/>
+    <label>
+        <br><br>Загрузите картинку<br/><br/>
+        <input type="file" accept="image/*" name="userFile">
+        <?php
+        if (isset($errors['file'])) {
+            echo '<span style="color: red">'.$errors['file'].'</span>';
+        }
+        ?>
+        <br>
+    </label><br>
+    <input type="hidden" name="MAX_FILE_SIZE" value="1" />
     <input type="submit" name="testName" value="Отправить">
 </form>
 
@@ -104,7 +155,9 @@ if (file_exists(FILE_NAME)) {
     if (!empty($arr)) {
         foreach ($arr as $k => $v) {
             $v = unserialize($v);
-
+            if (!empty($v['file'])) {
+                echo '<img src="./uploads/'. basename($v['file']).'" /><br/>';
+            }
             echo $v['name'] . '<br/>';
             echo $v['email'] . '<br/>';
             echo $v['text'] . '<br/><hr/>';

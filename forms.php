@@ -135,7 +135,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </label>
     <label>
         <br><br>Загрузите картинку<br/><br/>
-        <input type="file" accept="image/*" name="userFile">
+		<input type="hidden" name="MAX_FILE_SIZE" value="16777216" />
+        <input type="file" accept="image/*" name="userFile" />
         <?php
         if (isset($errors['file'])) {
             echo '<span style="color: red">'.$errors['file'].'</span>';
@@ -143,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ?>
         <br>
     </label><br>
-    <input type="hidden" name="MAX_FILE_SIZE" value="1" />
+    
     <input type="submit" name="testName" value="Отправить">
 </form>
 
